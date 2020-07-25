@@ -95,6 +95,8 @@ Scroll down and select the version: *Windows x86-64 executable installer*
 
 ### D. Run the program
 
-1. In the command prompt, navigate to the study code folder. Enter: *python controller.py*
+1. Download the whole directory from this page.
 
-2. CHEERS! You should have seen the interface now!
+2. In the command prompt, navigate to the study code folder. Enter: *python controller.py*
+
+3. CHEERS! You should have seen the interface now!
