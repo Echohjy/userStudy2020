@@ -26,19 +26,20 @@ SPACING = 0.035
 
 TO_MARK = 10
 TRAINING_CELLS = 50
-DISTANCE = 0.4
+DISTANCE = 0.5
 
 
 class MainWindow(QtWidgets.QMainWindow):
 
     next_task = QtCore.pyqtSignal(str)
 
-    def __init__(self, name, width, height, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum, firstCell):
+    def __init__(self, name, width, height, parNum, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum, firstCell):
         QtWidgets.QMainWindow.__init__(self)
         
         self.setWindowTitle(name)
         self.width = width
         self.height = height
+        self.parNum = parNum
         self.data = data
         self.startPoint = startPoint
         self.supportingCells = supportingCells
@@ -186,10 +187,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createCSVfile(self):
         self.trialNumber = int(len(self.markedTissues)/2)
-        self.csvFileName = "log/{}_ListSelection_{}_{}.csv".format(self.value, self.datasetNum, self.trialNumber)
+        self.csvFileName = "P{}/{}_ListSelection_{}_{}.csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber)
         i = 1
         while os.path.exists(self.csvFileName):
-            self.csvFileName = "log/{}_ListSelection_{}_{}({}).csv".format(self.value, self.datasetNum, self.trialNumber, i)
+            self.csvFileName = "P{}/{}_ListSelection_{}_{}({}).csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber, i)
             i += 1
         self.logFile = log.logFile(self.csvFileName)
         self.myInteractorStyle.setLogFile(self.logFile)
@@ -202,12 +203,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.centerOfPolyData = vtk.vtkCenterOfMass()
         self.markedTissues = []
-        self.lastSelectedItemIndex = None
         self.chosenNeighbor = None
         self.showedNeighborListOwner = None
         self.sister1 = None     # set these two as sisters
         self.sister2 = None
-        self.correctness = 0
+        self.focusedViewOn = False
 
         self.resetActors()
         self.fillListWidget()
@@ -239,6 +239,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.numberOfClicks = 0
             self.interactor.AddObserver('LeftButtonPressEvent', leftClickedMainView, -1.0)
 
+            def wheelForward(obj, ev):
+                self.logFile.record3DInteraction("ZoomIn", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            def wheelBackward(obj, ev):
+                self.logFile.record3DInteraction("ZoomOut", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            self.interactor.AddObserver('MouseWheelForwardEvent', wheelForward, -1.0)
+            self.interactor.AddObserver('MouseWheelBackwardEvent', wheelBackward, -1.0)
+
             self.listScrollBar = self.tissueList.verticalScrollBar()
             self.preBarValue = 0
             self.listScrollBar.valueChanged.connect(lambda:self.update_scrollBar())
@@ -246,6 +253,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.neighborList.itemSelectionChanged.connect(self.neighborListClicked)
         self.setAsSisterButton.clicked.connect(self.clickSetSister)
         self.tissueList.itemSelectionChanged.connect(self.listPressed)
+        self.tissueList.itemDoubleClicked.connect(self.listDoubleClicked)
 
         self.interactor.Initialize()
         self.interactor.Start()
@@ -315,6 +323,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.neighborTextActor.GetTextProperty().SetFontSize(self.font_size[1])
         self.neighborTextActor.GetTextProperty().SetColor(1.0,1.0,0)
         self.neighborTextActor.GetTextProperty().SetJustificationToCentered()
+        self.textOn = False
 
         for actor in self.modelActors:
             self.renderer.AddActor(actor)
@@ -356,27 +365,48 @@ class MainWindow(QtWidgets.QMainWindow):
             if (self.chosenNeighbor and not self.isTraining):
                 self.logFile.updateSister(2, "-", "-", "-")
             self.logFile.recordClick("Click", "TissueList", indexOfOri, self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
-        if (self.chosenNeighbor):
-            self.modelActors[self.chosenNeighbor].SetPosition(0,0,0)
-            # self.renderer.RemoveActor(self.neighborTextActor)
-            for actor in self.renderer.GetActors():
-                self.renderer.RemoveActor(actor)
-            if (self.renderer.GetActors2D()):
+        if (self.chosenNeighbor or self.focusedViewOn == True):
+            for index in self.neighbors:
+                self.modelActors[self.findIndexOfList(index)].SetPosition(0,0,0)
+            if (self.chosenNeighbor):
+                self.modelActors[self.chosenNeighbor].GetProperty().DeepCopy(self.originalProperty[self.chosenNeighbor])
+            if (self.textOn == True):
                 self.renderer.RemoveActor2D(self.neighborTextActor)
+                self.textOn = False
             for actor in self.modelActors:
                 index = self.modelActors.index(actor)
-                if (actor not in self.markedTissues):
+                if (actor not in self.renderer.GetActors() and index not in self.markedTissues):
                     self.renderer.AddActor(actor)
             self.chosenNeighbor = None
         self.zoomExtents()
         interact.highLightTissue(self.modelActors[indexOfList].GetProperty())
-        if ((self.lastSelectedItemIndex != None) and  (self.lastSelectedItemIndex >= 0) and
-            self.lastSelectedItemIndex not in self.markedTissues):
-            self.modelActors[self.lastSelectedItemIndex].GetProperty().DeepCopy(self.originalProperty[self.lastSelectedItemIndex])
-        self.lastSelectedItemIndex = indexOfList
+        if ((self.showedNeighborListOwner != None) and  (self.showedNeighborListOwner >= 0) and
+            self.showedNeighborListOwner not in self.markedTissues):
+            self.modelActors[self.showedNeighborListOwner].GetProperty().DeepCopy(self.originalProperty[self.showedNeighborListOwner])
         self.showedNeighborListOwner = indexOfList
         self.showNeighbors(indexOfOri)
         self.vtkWidget.GetRenderWindow().Render()
+        self.focusedViewOn = False
+
+    def listDoubleClicked(self):
+        item = self.tissueList.selectedItems()[0]
+        indexOfList = self.tissueList.row(item)
+        indexOfOri = self.findIndexOfOri(indexOfList)
+        if (not self.isTraining):
+            self.logFile.recordClick("DoubleClick", "TissueList", indexOfOri, self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+        if (self.showedNeighborListOwner == indexOfList and self.focusedViewOn == True):    return
+        for actor in self.renderer.GetActors():
+            actorIndex = self.modelActors.index(actor)
+            if (self.findIndexOfOri(actorIndex) not in self.neighbors and actorIndex != indexOfList):
+                self.renderer.RemoveActor(actor)
+        self.zoomExtents()
+        coordinates = self.explodedViewDisplay()
+        position = coordinates[self.existingActorsIndex.index(self.showedNeighborListOwner)]
+        for i in range(len(self.existingActorsIndex)):
+            self.modelActors[self.existingActorsIndex[i]].SetPosition(self.keepTargetStill(coordinates[i], position))
+
+        self.vtkWidget.GetRenderWindow().Render()
+        self.focusedViewOn = True
 
 
     def neighborListClicked(self):
@@ -384,23 +414,45 @@ class MainWindow(QtWidgets.QMainWindow):
         #     self.renderer.RemoveActor(self.neighborTextActor)
         if (self.neighborList.selectedItems() == []):   return
         item = self.neighborList.selectedItems()[0]
-        for actor in self.renderer.GetActors():
-            self.renderer.RemoveActor(actor)
-            if (self.chosenNeighbor):
-                self.modelActors[self.chosenNeighbor].SetPosition(0,0,0)
+
+        if (self.focusedViewOn == False):
+            for actor in self.renderer.GetActors():
+                actorIndex = self.modelActors.index(actor)
+                if (self.findIndexOfOri(actorIndex) not in self.neighbors and actorIndex != self.showedNeighborListOwner):
+                    self.renderer.RemoveActor(actor)
+            self.zoomExtents()
+            coordinates = self.explodedViewDisplay()
+            position = coordinates[self.existingActorsIndex.index(self.showedNeighborListOwner)]
+            for i in range(len(self.existingActorsIndex)):
+                self.modelActors[self.existingActorsIndex[i]].SetPosition(self.keepTargetStill(coordinates[i], position))
+
+        if (self.chosenNeighbor):
+            self.modelActors[self.chosenNeighbor].GetProperty().DeepCopy(self.originalProperty[self.chosenNeighbor])
         self.chosenNeighbor = self.findIndexOfList(fixedSurface.findIndexWithName(self.data.tissues, item.text()))
+        interact.highLightNeighbor(self.modelActors[self.chosenNeighbor].GetProperty())
         indexOfOri = self.findIndexOfOri(self.chosenNeighbor)
         if (not self.isTraining):
             self.logFile.updateSister(2, indexOfOri, self.neighbors.index(indexOfOri), fixedSurface.outsideOrInside(indexOfOri))
             self.logFile.recordClick("Click", "NeighborList", indexOfOri, self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
-        self.renderer.AddActor(self.modelActors[self.showedNeighborListOwner])
-        self.renderer.AddActor(self.modelActors[self.chosenNeighbor])
         self.modelActors[self.chosenNeighbor].SetPosition(self.keepDistanceBetweenTwo())
-        self.camera.SetFocalPoint(self.modelActors[self.showedNeighborListOwner].GetCenter())
+        # self.camera.SetFocalPoint(self.modelActors[self.showedNeighborListOwner].GetCenter())
         # self.addNeighborText(self.chosenNeighbor, self.neighbors.index(self.findIndexOfOri(self.chosenNeighbor)))
         self.formNeighborText(self.chosenNeighbor, self.neighbors.index(indexOfOri))
         self.vtkWidget.GetRenderWindow().Render()
+        self.focusedViewOn = True
 
+
+    def explodedViewDisplay(self):
+        coordinates = []
+        for index in self.existingActorsIndex:
+            coordinate = []
+            for i in range(3):
+                coordinate.append(DISTANCE * (self.modelActors[index].GetCenter()[i] - self.centerOfPolyData.GetCenter()[i]))
+            coordinates.append(coordinate)
+        return coordinates
+
+    def keepTargetStill(self, pos1, pos2):
+        return [pos1[0] - pos2[0], pos1[1] - pos2[1], pos1[2] - pos2[2]]
 
     def keepDistanceBetweenTwo(self):
         oriPos = self.modelActors[self.chosenNeighbor].GetCenter()
@@ -468,8 +520,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.centerOfPolyData.Update()
 
     def formNeighborText(self, index, numberIndex):
-        if (self.neighborTextActor not in self.renderer.GetActors()):
+        if (self.textOn == False):
             self.renderer.AddActor(self.neighborTextActor)
+            self.textOn = True
         self.neighborTextActor.SetInput(str(self.assignedNumbers[numberIndex]))
         position = self.modelActors[index].GetCenter()
         pos1 = self.modelActors[self.showedNeighborListOwner].GetCenter()
@@ -520,13 +573,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if (self.showedNeighborListOwner == None or self.chosenNeighbor == None):
             interact.alert_pop("sisters")
             return
+
+        if (self.findIndexOfOri(self.showedNeighborListOwner) != self.toMark):
+            interact.alert_pop("wrong_target")
+            return
         
         # index of list
         self.sister1 = self.showedNeighborListOwner
         self.sister2 = self.chosenNeighbor
         self.markedTissues.append(self.sister1)
         self.markedTissues.append(self.sister2)
-
 
         self.renderer.RemoveActor(self.modelActors[self.sister1])
         self.renderer.RemoveActor(self.modelActors[self.sister2])
@@ -550,9 +606,12 @@ class MainWindow(QtWidgets.QMainWindow):
             # if (self.presetSisters[self.findIndexOfOri(self.sister1)] == self.findIndexOfOri(self.sister2)):
             #     self.correctness += int(100 / TO_MARK)
 
-        
-        if (self.renderer.GetActors2D()):
+        if (self.textOn == True):
             self.renderer.RemoveActor2D(self.neighborTextActor)
+            self.textOn = False
+        
+        for index in self.neighbors:
+            self.modelActors[self.findIndexOfList(index)].SetPosition(0,0,0)
         for actor in self.modelActors:
             if (actor not in self.renderer.GetActors() and self.modelActors.index(actor) not in self.markedTissues):
                 self.renderer.AddActor(actor)

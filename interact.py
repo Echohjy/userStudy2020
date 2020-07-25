@@ -22,8 +22,8 @@ class MyInteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.AddObserver("LeftButtonReleaseEvent", self.left_button_release_event)
         self.AddObserver("MiddleButtonPressEvent", self.middle_button_press_event)
         self.AddObserver("MiddleButtonReleaseEvent", self.middle_button_release_event)
-        self.AddObserver("MouseWheelForwardEvent", self.wheel_forward_event)
-        self.AddObserver("MouseWheelBackwardEvent", self.wheel_backward_event)
+        # self.AddObserver("MouseWheelForwardEvent", self.wheel_forward_event)
+        # self.AddObserver("MouseWheelBackwardEvent", self.wheel_backward_event)
         self.AddObserver("MouseMoveEvent",self.mouse_move_event)
         self.leftButtonDown = False
         self.middleButtonDown = False
@@ -255,6 +255,10 @@ def alert_pop(text):
     msg.setWindowTitle("Alert!")
     if (text == "sisters"):
         msg.setText("Please choose two cells!")
+        msg.setIcon(QMessageBox.Critical)
+        msg.setStandardButtons(QMessageBox.Ok)
+    if (text == "wrong_target"):
+        msg.setText("Please choose the right target cell!")
         msg.setIcon(QMessageBox.Critical)
         msg.setStandardButtons(QMessageBox.Ok)
     msg.exec_()     

@@ -31,12 +31,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     next_task = QtCore.pyqtSignal(str)
 
-    def __init__(self, name, width, height, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum, firstCell):
+    def __init__(self, name, width, height, parNum, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum, firstCell):
         QtWidgets.QMainWindow.__init__(self)
         
         self.setWindowTitle(name)
         self.width = width
         self.height = height
+        self.parNum = parNum
         self.data = data
         self.startPoint = startPoint
         self.supportingCells = supportingCells
@@ -163,10 +164,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createCSVfile(self):
         self.trialNumber = int(len(self.markedTissues)/2)
-        self.csvFileName = "log/{}_ExplosionSelection_{}_{}.csv".format(self.value, self.datasetNum, self.trialNumber)
+        self.csvFileName = "P{}/{}_ExplosionSelection_{}_{}.csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber)
         i = 1
         while os.path.exists(self.csvFileName):
-            self.csvFileName = "log/{}_ExplosionSelection_{}_{}({}).csv".format(self.value, self.datasetNum, self.trialNumber, i)
+            self.csvFileName = "P{}/{}_ExplosionSelection_{}_{}({}).csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber, i)
             i += 1
 
         self.logFile = log.logFile(self.csvFileName)
@@ -198,7 +199,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if (not self.isTraining):
             def kayboardPressedActor(obj, ev):
                 self.logFile.recordPress("Keyboard", obj.GetKeySym(), self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
-            self.interactor.AddObserver('KeyPressEvent', kayboardPressedActor, -1.0)       
+            self.interactor.AddObserver('KeyPressEvent', kayboardPressedActor, -1.0) 
+            
+            def wheelForward(obj, ev):
+                self.logFile.record3DInteraction("ZoomIn", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            def wheelBackward(obj, ev):
+                self.logFile.record3DInteraction("ZoomOut", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            self.interactor.AddObserver('MouseWheelForwardEvent', wheelForward, -1.0)
+            self.interactor.AddObserver('MouseWheelBackwardEvent', wheelBackward, -1.0)      
 
         self.numberOfClicks = 0
         self.prePosition = [0,0]
@@ -423,6 +431,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if (self.sister1 == None or self.sister2 == None):
             interact.alert_pop("sisters")
             return
+        if (self.findIndexOfOri(self.sister1) != self.toMark):
+            interact.alert_pop("wrong_target")
+            return
+
         self.markedTissues.append(self.sister1)
         self.markedTissues.append(self.sister2)
 

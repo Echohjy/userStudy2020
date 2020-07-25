@@ -32,12 +32,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     next_task = QtCore.pyqtSignal(str)
 
-    def __init__(self, name, width, height, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum):
+    def __init__(self, name, width, height, parNum, data, startPoint, supportingCells, neighborsInOrderOfCells, presetSisters, actTissueList, points, tissuesTriangles, originalProperty, modelActors, datasetNum):
         QtWidgets.QMainWindow.__init__(self)
         
         self.setWindowTitle(name)
         self.width = width
         self.height = height
+        self.parNum = parNum
         self.data = data
         self.startPoint = startPoint
         self.supportingCells = supportingCells
@@ -195,10 +196,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createCSVfile(self):
         self.trialNumber = int(len(self.markedTissues)/2)
-        self.csvFileName = "log/{}_CombinationSelection_{}_{}.csv".format(self.value, self.datasetNum, self.trialNumber)
+        self.csvFileName = "P{}/{}_CombinationSelection_{}_{}.csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber)
         i = 1
         while os.path.exists(self.csvFileName):
-            self.csvFileName = "log/{}_CombinationSelection_{}_{}({}).csv".format(self.value, self.datasetNum, self.trialNumber, i)
+            self.csvFileName = "P{}/{}_CombinationSelection_{}_{}({}).csv".format(self.parNum, self.value, self.datasetNum, self.trialNumber, i)
             i += 1
 
         self.logFile = log.logFile(self.csvFileName)
@@ -229,7 +230,12 @@ class MainWindow(QtWidgets.QMainWindow):
             def kayboardPressedActor(obj, ev):
                 self.logFile.recordPress("Keyboard", obj.GetKeySym(), self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
             self.interactor.AddObserver('KeyPressEvent', kayboardPressedActor, -1.0)       
-
+            def wheelForward(obj, ev):
+                self.logFile.record3DInteraction("ZoomIn", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            def wheelBackward(obj, ev):
+                self.logFile.record3DInteraction("ZoomOut", self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+            self.interactor.AddObserver('MouseWheelForwardEvent', wheelForward, -1.0)
+            self.interactor.AddObserver('MouseWheelBackwardEvent', wheelBackward, -1.0)
 
         self.lastSingleClicked = None
         self.lastDoubleClicked = None
@@ -314,6 +320,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.interactor.AddObserver('LeftButtonPressEvent', leftClickedActorHighlight, -1.0)
 
         self.tissueList.itemSelectionChanged.connect(self.listPressed)
+        self.tissueList.itemDoubleClicked.connect(self.listDoubleClicked)
         self.neighborList.itemSelectionChanged.connect(self.neighborListClicked)
         self.setAsSisterButton.clicked.connect(self.clickSetSister)
 
@@ -450,6 +457,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lastDoubleClicked = None
         self.showNeighbors(indexOfOri)
         self.vtkWidget.GetRenderWindow().Render()
+
+    def listDoubleClicked(self):
+        item = self.tissueList.selectedItems()[0]
+        indexOfList = self.tissueList.row(item)
+        indexOfOri = self.findIndexOfOri(indexOfList)
+        neighbors = self.neighborsInOrderOfCells[indexOfOri].copy()
+        for actor in self.renderer.GetActors():
+            actorIndex = self.modelActors.index(actor)
+            if (self.findIndexOfOri(actorIndex) not in neighbors and actorIndex != indexOfList):
+                self.renderer.RemoveActor(actor)
+        self.lastSingleClicked = None
+        self.lastDoubleClicked = indexOfList
+        if (not self.isTraining):
+            self.logFile.recordClick("DoubleClick", "TissueList", indexOfOri, self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+        self.vtkWidget.GetRenderWindow().Render()
+
 
     def neighborListClicked(self):
         if (self.neighborList.selectedItems() == []):   return
@@ -589,6 +612,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def setSister(self):
         if (self.lastDoubleClicked == None or self.lastSingleClicked == None):
             interact.alert_pop("sisters")
+            return
+
+        if (self.findIndexOfOri(self.lastDoubleClicked) not in self.toMarkTissues):
+            interact.alert_pop("wrong_target")
             return
         # index of list
         self.sister1 = self.lastDoubleClicked
