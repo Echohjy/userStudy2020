@@ -87,9 +87,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.taskLabel.setText("In this task, you could only select cells from objects in the main view and move the scroll bar enables to get the exploded view.")
         self.taskLabel.setWordWrap(True)
         self.taskLabel.setFixedSize(self.width * (VIS_WIDTH_RATIO-LIST_WIDTH_RATIO), 40)
-        if (sys.platform == 'darwin'):  self.font_size = [20, 50]
-        else:   self.font_size = [15,25]
-        font = QtGui.QFont("Times", self.font_size[0], QtGui.QFont.Bold) 
+        font = QtGui.QFont("Times", int(20*72/self.logicalDpiX()), QtGui.QFont.Bold) 
         self.taskLabel.setFont(font)
         self.mainVL = QtWidgets.QGridLayout()
         self.mainVL.addWidget(self.taskLabel,0,0,1,9)
@@ -335,7 +333,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def addActorsToRender(self):
         # set up neighbor text actor
         self.neighborTextActor = vtk.vtkBillboardTextActor3D()
-        self.neighborTextActor.GetTextProperty().SetFontSize(self.font_size[1])
+        self.neighborTextActor.GetTextProperty().SetFontSize(int(50*72/self.logicalDpiX()))
         self.neighborTextActor.GetTextProperty().SetColor(1.0,1.0,0)
         self.neighborTextActor.GetTextProperty().SetJustificationToCentered()
         self.textOn = False

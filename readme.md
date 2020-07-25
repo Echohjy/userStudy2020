@@ -25,7 +25,7 @@ You’ll see messages in the Terminal explaining what you need to do to complete
 
 ### C. Install pyqt5 and vtk
 
-1. Open the Terminal and enter: `pip install pyqt5` and `pip install vtk`
+1. Open the Terminal and enter: `python3 -m pip install PyQt5` and `pip install vtk`
 
 ### D. Run the program
 

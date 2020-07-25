@@ -87,9 +87,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.taskLabel = QtWidgets.QLabel(self.centralwidget)
         self.taskLabel.setText("In this task, you could select cells from the lists on the right part. Also, you could move the scroll bar to get the exploded view of the embryo.")
-        if (sys.platform == 'darwin'):  self.font_size = [20, 50]
-        else:   self.font_size = [15,25]
-        font = QtGui.QFont("Times", self.font_size[0], QtGui.QFont.Bold) 
+        font = QtGui.QFont("Times", int(20*72/self.logicalDpiX()), QtGui.QFont.Bold) 
         self.taskLabel.setFont(font)
         self.taskLabel.setWordWrap(True)
         self.taskLabel.setFixedSize(self.width * (VIS_WIDTH_RATIO-LIST_WIDTH_RATIO), 40)
@@ -403,7 +401,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def addActorsToRender(self):
         # set up neighbor text actor
         self.neighborTextActor = vtk.vtkBillboardTextActor3D()
-        self.neighborTextActor.GetTextProperty().SetFontSize(self.font_size[1])
+        self.neighborTextActor.GetTextProperty().SetFontSize(int(50*72/self.logicalDpiX()))
         self.neighborTextActor.GetTextProperty().SetColor(1.0,1.0,0)
         self.neighborTextActor.GetTextProperty().SetJustificationToCentered()
         self.textOn = False
@@ -679,7 +677,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if (self.lastDoubleClicked != None and self.lastDoubleClicked in self.existingActorsIndex):
             position = coordinates[self.existingActorsIndex.index(self.lastDoubleClicked)]
         for index in self.existingActorsIndex:
-            if (self.lastDoubleClicked != None):
+            if (self.lastDoubleClicked != None and self.lastDoubleClicked in self.existingActorsIndex):
                 self.modelActors[index].SetPosition(self.keepTargetStill(coordinates[self.existingActorsIndex.index(index)], position))
             else:
                 self.modelActors[index].SetPosition(coordinates[self.existingActorsIndex.index(index)])
