@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import sys
 import vtk
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from PyQt5 import QtCore, QtGui, QtWidgets
 import pickle
 import copy
@@ -152,13 +153,23 @@ class Controller:
         self.dataTraining, self.startPointTraining, self.supportingCellsTraining, self.neighborsInOrderOfCellsTraining, self.presetSistersTraining, self.actTissueListTraining, self.pointsTraining, self.tissuesTrianglesTraining, self.originalPropertyTraining, self.modelActorsTraining = interact.initialize(trainingFile)
 
 def main():
+    _getPixelRatio_BUG = QVTKRenderWindowInteractor._getPixelRatio
+    def _getPixelRatio_WORKAROUND(self):
+        try:
+            return _getPixelRatio_BUG()
+        except Exception as err:
+            print("Exception QVTKRenderWindowInteractor._getPixelRatio: {0}".format(err))
+            return QtWidgets.QApplication.instance().devicePixelRatio()
+    setattr(QVTKRenderWindowInteractor, '_getPixelRatio_WORKAROUND', _getPixelRatio_WORKAROUND)
+    QVTKRenderWindowInteractor._getPixelRatio = _getPixelRatio_WORKAROUND
+    
     app = QtWidgets.QApplication(sys.argv)
     screen_resolution = app.desktop().screenGeometry()
     width, height = screen_resolution.width(), screen_resolution.height()
     # width, height = 1280, 800 
     controller = Controller(width, height)
     controller.starting()
-        
+    
     sys.exit(app.exec_())
 
 

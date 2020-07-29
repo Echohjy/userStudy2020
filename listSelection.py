@@ -26,7 +26,7 @@ SPACING = 0.035
 
 TO_MARK = 10
 TRAINING_CELLS = 50
-DISTANCE = 0.5
+DISTANCE = 0.8
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -277,7 +277,7 @@ class MainWindow(QtWidgets.QMainWindow):
             msg.setWindowTitle("Alert!")
             msg.setText("You have already finished this task!\nAre you sure to continue now?")
             msg.setIcon(QMessageBox.Information)
-            msg.setStandardButtons(QMessageBox.Ok|QMessageBox.Ignore)
+            msg.setStandardButtons(QMessageBox.Ok)
             msg.buttonClicked.connect(self.popup_button)
             msg.exec_()
         pixmap = QtGui.QPixmap(16,16)
@@ -288,6 +288,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def popup_button(self, i):
         if (i.text() == "OK"):
             self.switch()
+        else:   return
 
     def fillListWidget(self):
         # Fill in the tissues' information(listWidgets)
@@ -482,9 +483,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.assignedNumbers = interact.formTargetRandomNumber(len(self.neighbors), self.neighbors.index(sister))
 
-        self.neighborList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.neighborList.customContextMenuRequested.connect(self.generateMenu)
-        self.neighborList.viewport().installEventFilter(self)
+        # self.neighborList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # self.neighborList.customContextMenuRequested.connect(self.generateMenu)
+        # self.neighborList.viewport().installEventFilter(self)
 
     def pressZoomExtents(self):
         if (len(self.modelActors) > TRAINING_CELLS):
@@ -550,7 +551,7 @@ class MainWindow(QtWidgets.QMainWindow):
             source is self.neighborList.viewport()):
             item = self.neighborList.itemAt(event.pos())
             if (item is not None):
-                self.chosenNeighbor = fixedSurface.findIndexWithName(self.data.tissues, item.text())
+                self.chosenNeighbor = self.findIndexOfList(fixedSurface.findIndexWithName(self.data.tissues, item.text()))
                 self.menu = QtWidgets.QMenu(self)
                 setAsSister = self.menu.addAction("Set As Sisters")
                 setAsSister.triggered.connect(lambda:self.setSister())

@@ -257,10 +257,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 if (NewPickedActor and NewPickedActor in self.modelActors):
                     index = self.modelActors.index(NewPickedActor)
                     if (index != self.lastDoubleClicked):
-                        if (self.lastSingleClicked != None and self.lastSingleClicked not in self.markedTissues):
+                        if (self.lastSingleClicked != None and self.lastSingleClicked != index and self.lastSingleClicked not in self.markedTissues):
                             self.modelActors[self.lastSingleClicked].GetProperty().DeepCopy(self.originalProperty[self.lastSingleClicked])
                         # if in focus view, highlight item in the neighbor list. or highlight in tissue list
-                        if (self.lastDoubleClicked != None and self.lastDoubleClicked not in self.markedTissues):
+                        if (self.lastDoubleClicked != None and self.lastSingleClicked != index and self.lastDoubleClicked not in self.markedTissues):
                             self.highlightList(self.neighborList, self.findIndexOfOri(index))
                             if (self.findIndexOfOri(index) in self.neighbors):
                                 self.formNeighborText(index, self.neighbors.index(self.findIndexOfOri(index)))
@@ -276,7 +276,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if (self.numberOfClicks == 2):
                 if (NewPickedActor and NewPickedActor in self.modelActors):
                     index = self.modelActors.index(NewPickedActor)
-                    if (self.textOn == True):
+                    if (self.lastDoubleClicked != None and index != self.lastDoubleClicked):
+                        self.numberOfClicks = 0
+                        return
+                    if (self.textOn == True and index == self.lastDoubleClicked):
                         self.renderer.RemoveActor2D(self.neighborTextActor)
                         self.textOn = False
                     self.highlightList(self.tissueList, index)
@@ -469,6 +472,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lastDoubleClicked = indexOfList
         if (not self.isTraining):
             self.logFile.recordClick("DoubleClick", "TissueList", indexOfOri, self.camera.GetPosition(), self.camera.GetFocalPoint(), self.camera.GetDistance())
+        self.camera.SetFocalPoint(self.modelActors[self.lastDoubleClicked].GetCenter())
         self.vtkWidget.GetRenderWindow().Render()
 
 
@@ -521,9 +525,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.assignedNumbers = interact.formTargetRandomNumber(len(self.neighbors), self.neighbors.index(sister))
 
-        self.neighborList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.neighborList.customContextMenuRequested.connect(self.generateMenu)
-        self.neighborList.viewport().installEventFilter(self)
+        # self.neighborList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # self.neighborList.customContextMenuRequested.connect(self.generateMenu)
+        # self.neighborList.viewport().installEventFilter(self)
 
     def pressZoomExtents(self):
         if (not self.isTraining):
@@ -590,7 +594,7 @@ class MainWindow(QtWidgets.QMainWindow):
             source is self.neighborList.viewport()):
             item = self.neighborList.itemAt(event.pos())
             if (item is not None):
-                self.lastSingleClicked = fixedSurface.findIndexWithName(self.data.tissues, item.text())
+                self.lastSingleClicked = self.findIndexOfList(fixedSurface.findIndexWithName(self.data.tissues, item.text()))
                 self.menu = QtWidgets.QMenu(self)
                 setAsSister = self.menu.addAction("Set As Sisters")
                 setAsSister.triggered.connect(lambda:self.setSister())

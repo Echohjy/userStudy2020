@@ -227,15 +227,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 if (NewPickedActor and NewPickedActor in self.modelActors):
                     index = self.modelActors.index(NewPickedActor)
                     if (index != self.lastDoubleClicked):
-                        if (self.lastSingleClicked != None and self.lastSingleClicked not in self.markedTissues):
+                        if (self.lastSingleClicked != None and self.lastSingleClicked != index and self.lastSingleClicked not in self.markedTissues):
                             self.modelActors[self.lastSingleClicked].GetProperty().DeepCopy(self.originalProperty[self.lastSingleClicked])
                         # if in focus view, highlight item in the neighbor list. or highlight in tissue list
-                        if (self.lastDoubleClicked != None and self.lastDoubleClicked not in self.markedTissues):
+                        if (self.lastDoubleClicked != None and self.lastSingleClicked != index and self.lastDoubleClicked not in self.markedTissues):
                             if (self.findIndexOfOri(index) in self.neighbors):
                                 self.formNeighborText(index, self.neighbors.index(self.findIndexOfOri(index)))
                             interact.highLightNeighbor(self.modelActors[index].GetProperty())
                             if (not self.isTraining):   self.logFile.updateSister(2, self.findIndexOfOri(index), "-", fixedSurface.outsideOrInside(self.findIndexOfOri(index)))
-                        else:
+                        elif (self.lastSingleClicked != index):
                             interact.highLightTissue(self.modelActors[index].GetProperty())
                         self.lastSingleClicked = index
                     if (not self.isTraining):
@@ -244,7 +244,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if (self.numberOfClicks == 2):
                 if (NewPickedActor and NewPickedActor in self.modelActors):
                     index = self.modelActors.index(NewPickedActor)
-                    if (self.textOn == True):
+                    if (self.lastDoubleClicked and index != self.lastDoubleClicked): 
+                        self.numberOfClicks = 0
+                        return
+                    if (self.textOn == True and index == self.lastDoubleClicked):
                         self.renderer.RemoveActor2D(self.neighborTextActor)
                         self.textOn = False
                     self.showNeighbors(self.findIndexOfOri(index))
@@ -310,7 +313,7 @@ class MainWindow(QtWidgets.QMainWindow):
             msg.setWindowTitle("Alert!")
             msg.setText("You have already finished this task!\nAre you sure to continue now?")
             msg.setIcon(QMessageBox.Information)
-            msg.setStandardButtons(QMessageBox.Ok|QMessageBox.Ignore)
+            msg.setStandardButtons(QMessageBox.Ok)
             msg.buttonClicked.connect(self.popup_button)
             msg.exec_()
         index = self.findIndexOfList(self.toMark)
@@ -346,7 +349,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.camera.SetViewUp(0.0, 0.0, 0.0)
         # set the focal point the center of the model
         self.camera.SetFocalPoint(self.centerOfPolyData.GetCenter())
-        # self.camera.SetPosition(interact.zoomoutCam(self.camera))
+        self.camera.SetPosition(interact.zoomoutCam(self.camera))
         self.renderer.SetActiveCamera(self.camera)
 
     #### Interaction
@@ -369,7 +372,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.existingActorsIndex = self.calExistingActorsIndex()
         self.recalculateCenter(self.existingActorsIndex)
         self.camera.SetFocalPoint(self.centerOfPolyData.GetCenter())
-        self.camera.SetPosition(interact.zoomoutCam(self.camera))
+        # self.camera.SetPosition(interact.zoomoutCam(self.camera))
         self.vtkWidget.GetRenderWindow().Render()
 
 
